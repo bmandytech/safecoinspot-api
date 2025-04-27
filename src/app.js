@@ -234,7 +234,7 @@ async function registerUser(email, password) {
 // Function to handle user login
 async function loginUser(email, password) {
     try {
-        const response = await fetch('https://safecoinspot-bankend.onrender.com/register', { // Updated endpoint
+        const response = await fetch('https://safecoinspot.vercel.app/register', { // Updated endpoint
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -267,7 +267,7 @@ async function refreshAccessToken() {
     }
 
     try {
-        const response = await fetch('https://safecoinspot-bankend.onrender.com/refresh-token', { // Updated endpoint to match your server setup
+        const response = await fetch('https://safecoinspot.vercel.app/refresh-token', { // Updated endpoint to match your server setup
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
