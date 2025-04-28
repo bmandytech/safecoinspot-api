@@ -1,10 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
-const mysql = require('mysql2');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer'); // Add Nodemailer for email functionality
 const bcrypt = require('bcryptjs'); // For password hashing
+const sequelize = require('./config/db'); // Sequelize DB connection
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -13,39 +13,11 @@ const app = express();
 // Middleware
 app.use(bodyParser.json()); // For parsing JSON bodies
 
-// MySQL database connection
-const db = mysql.createConnection({
-    host: process.env.DB_HOST, // Database host (use .env for security)
-    user: process.env.DB_USER, // MySQL username
-    password: process.env.DB_PASSWORD, // MySQL password
-    database: process.env.DB_NAME // MySQL database name
-});
-
-// Connect to MySQL database
-db.connect((err) => {
-    if (err) {
-        console.error('Error connecting to MySQL:', err.stack);
-        return;
-    }
-    console.log('Connected to MySQL database');
-});
-
-// Set up email transporter (Nodemailer)
-const transporter = nodemailer.createTransport({
-    service: 'smtp',
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
-
 // Import wallet routes from the src folder
-const walletRoutes = require('./src/routes/walletRoutes');  // Adjusted path to src folder
+const walletRoutes = require('./routes/walletRoutes');  // Adjusted path to src folder
 
 // Import CoinPayments routes
-const coinPaymentsRoutes = require('./src/routes/coinPaymentsRoutes');  // Path for coinPaymentsRoutes
+const coinPaymentsRoutes = require('./routes/coinPaymentsRoutes');  // Path for coinPaymentsRoutes
 
 // Use wallet routes
 app.use('/api/wallets', walletRoutes);
@@ -93,7 +65,7 @@ function generateToken(user) {
 }
 
 // Register route
-app.post('/register', async (req, res) => {
+app.post('/api/register', async (req, res) => {
     const { username, email, password } = req.body;
   
     // Hash the password
@@ -101,12 +73,7 @@ app.post('/register', async (req, res) => {
 
     // Store user in the database
     const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
-    db.query(query, [username, email, hashedPassword], (err, result) => {
-        if (err) {
-            console.error('Error registering user:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
-
+    sequelize.query(query, [username, email, hashedPassword]).then(() => {
         // Send a welcome email
         const mailOptions = {
             from: process.env.EMAIL_USER,
@@ -114,6 +81,15 @@ app.post('/register', async (req, res) => {
             subject: 'Welcome to Safecoinspot!',
             text: `Hello ${username},\n\nThank you for signing up on Safecoinspot. We are glad to have you with us.`,
         };
+
+        // Create transporter with SMTP configuration
+        const transporter = nodemailer.createTransport({
+            service: 'gmail', // Can be changed based on your email service
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD,
+            },
+        });
 
         transporter.sendMail(mailOptions, (err, info) => {
             if (err) {
@@ -124,19 +100,19 @@ app.post('/register', async (req, res) => {
         });
 
         res.status(201).json({ message: 'User registered successfully' });
+    }).catch(err => {
+        console.error('Error registering user:', err);
+        res.status(500).json({ error: 'Database error' });
     });
 });
 
 // Login route
-app.post('/login', (req, res) => {
+app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
 
     // Check if user exists
     const query = 'SELECT * FROM users WHERE email = ?';
-    db.query(query, [email], async (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
+    sequelize.query(query, { replacements: [email], type: sequelize.QueryTypes.SELECT }).then(async (result) => {
         if (result.length === 0) {
             return res.status(400).json({ error: 'Invalid credentials' });
         }
@@ -159,11 +135,13 @@ app.post('/login', (req, res) => {
 
         // Send back the tokens
         res.json({ accessToken, refreshToken });
+    }).catch(err => {
+        res.status(500).json({ error: 'Database error' });
     });
 });
 
 // Refresh token route
-app.post('/refresh-token', (req, res) => {
+app.post('/api/refresh-token', (req, res) => {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {

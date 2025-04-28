@@ -1,23 +1,15 @@
-const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../config/db'); // Make sure this points to your db config file
+// src/config/db.js
 
-// Import model definitions
-const Wallet = require('./Wallet');
-const WithdrawalFee = require('./WithdrawalFee');
-const SendingFee = require('./SendingFee');
-const Transaction = require('./Transaction');
+const { Sequelize } = require('sequelize');
 
-// Optional: define model associations here if needed
-// Example:
-// Wallet.hasMany(Transaction, { foreignKey: 'user_id' });
-// Transaction.belongsTo(Wallet, { foreignKey: 'user_id' });
+// Define your database connection using Sequelize
+const sequelize = new Sequelize({
+  dialect: 'mysql', // or 'postgres', 'sqlite', etc.
+  host: process.env.DB_HOST || 'localhost',  // or your remote DB host
+  username: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'crypto_db',  // Use your actual database name here
+  logging: false,  // Disable logging SQL queries (can be enabled for debugging)
+});
 
-// Export all models and Sequelize instance
-module.exports = {
-  sequelize,
-  Sequelize,
-  Wallet,
-  WithdrawalFee,
-  SendingFee,
-  Transaction,
-};
+module.exports = sequelize;

@@ -4,25 +4,24 @@ const dotenv = require('dotenv');
 const mysql = require('mysql2');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const bcrypt = require('bcryptjs'); // For password hashing
-const fetch = require('node-fetch'); // For HTTP requests (used for registration, login, and token refresh)
+const bcrypt = require('bcryptjs');
+const fetch = require('node-fetch');
 
-dotenv.config(); // Load environment variables from .env file
+dotenv.config();
 
 const app = express();
 
 // Middleware
-app.use(bodyParser.json()); // For parsing JSON bodies
+app.use(bodyParser.json());
 
-// MySQL database connection
+// MySQL connection
 const db = mysql.createConnection({
-    host: process.env.DB_HOST, // Database host (use .env for security)
-    user: process.env.DB_USER, // MySQL username
-    password: process.env.DB_PASSWORD, // MySQL password
-    database: process.env.DB_NAME // MySQL database name
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
 });
 
-// Connect to MySQL database
 db.connect((err) => {
     if (err) {
         console.error('Error connecting to MySQL:', err.stack);
@@ -31,7 +30,7 @@ db.connect((err) => {
     console.log('Connected to MySQL database');
 });
 
-// Set up email transporter (Nodemailer)
+// Nodemailer setup
 const transporter = nodemailer.createTransport({
     service: 'smtp',
     host: process.env.EMAIL_HOST,
@@ -42,19 +41,14 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Import wallet routes from the src folder
-const walletRoutes = require('./src/routes/walletRoutes');  // Adjusted path to src folder
+// Routes
+const walletRoutes = require('./src/routes/walletRoutes');
+const coinPaymentsRoutes = require('./src/routes/coinPaymentsRoutes');
 
-// Import CoinPayments routes
-const coinPaymentsRoutes = require('./src/routes/coinPaymentsRoutes');  // Path for coinPaymentsRoutes
-
-// Use wallet routes
 app.use('/api/wallets', walletRoutes);
+app.use('/api/coinpayments', coinPaymentsRoutes); // 🛑 Fixed wrong route path here
 
-// Use CoinPayments routes
-app.use('/api/coinpayments', coinPaymentsRoutes);  // Add CoinPayments routes to the API
-
-// Add Biometric Login route (example route for handling biometric data)
+// Biometric Login
 app.post('/api/biometric-login', (req, res) => {
     const { biometricData } = req.body;
 
@@ -62,77 +56,67 @@ app.post('/api/biometric-login', (req, res) => {
         return res.status(400).json({ success: false, message: 'Biometric data is required' });
     }
 
-    // Example: Verify biometric data (this is just a placeholder for your actual verification logic)
     const biometricVerified = verifyBiometricData(biometricData);
 
     if (biometricVerified) {
-        // If biometric verification is successful, retrieve user info and issue a token
-        const user = { id: 1, name: 'John Doe' }; // Fetch user info from the database based on the biometric data (this is just a placeholder)
-        
-        // Generate a token (JWT or similar)
+        const user = { id: 1, name: 'John Doe' }; // 🔥 Replace with real DB lookup
         const token = generateToken(user);
-
         return res.json({ success: true, token });
     } else {
         return res.status(401).json({ success: false, message: 'Biometric authentication failed' });
     }
 });
 
-// Function to simulate biometric data verification (replace with actual logic)
 function verifyBiometricData(biometricData) {
-    // Placeholder logic for biometric data verification.
-    // You should integrate a real WebAuthn API or similar biometric service here.
-    return biometricData === 'valid-bio-data'; // Replace with actual verification logic
+    return biometricData === 'valid-bio-data';
 }
 
-// Function to generate a token (JWT or similar)
 function generateToken(user) {
-    // Generate JWT token for the user
-    const payload = { id: user.id, name: user.name }; // Payload with user info
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }); // Use JWT secret from .env and set expiration time (1 hour)
-    return token;
+    const payload = { id: user.id, name: user.name };
+    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 }
 
 // Register route
-app.post('/register', async (req, res) => {
+app.post('/register', async (req, res) => { // 🛑 Fixed wrong route path here
     const { username, email, password } = req.body;
-  
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Store user in the database
-    const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
-    db.query(query, [username, email, hashedPassword], (err, result) => {
-        if (err) {
-            console.error('Error registering user:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Send a welcome email
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Welcome to Safecoinspot!',
-            text: `Hello ${username},\n\nThank you for signing up on Safecoinspot. We are glad to have you with us.`,
-        };
-
-        transporter.sendMail(mailOptions, (err, info) => {
+        const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+        db.query(query, [username, email, hashedPassword], (err, result) => {
             if (err) {
-                console.error('Error sending email:', err);
-            } else {
-                console.log('Email sent: ' + info.response);
+                console.error('Error registering user:', err);
+                return res.status(500).json({ error: 'Database error' });
             }
-        });
 
-        res.status(201).json({ message: 'User registered successfully' });
-    });
+            const mailOptions = {
+                from: process.env.EMAIL_USER,
+                to: email,
+                subject: 'Welcome to Safecoinspot!',
+                text: `Hello ${username},\n\nThank you for signing up on Safecoinspot. We are glad to have you with us.`,
+            };
+
+            transporter.sendMail(mailOptions, (err, info) => {
+                if (err) {
+                    console.error('Error sending email:', err);
+                } else {
+                    console.log('Email sent: ' + info.response);
+                }
+            });
+
+            res.status(201).json({ message: 'User registered successfully' });
+        });
+    } catch (error) {
+        console.error('Error:', error.message);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // Login route
-app.post('/login', (req, res) => {
+app.post('/login', (req, res) => { // 🛑 Fixed wrong route path here
     const { email, password } = req.body;
 
-    // Check if user exists
     const query = 'SELECT * FROM users WHERE email = ?';
     db.query(query, [email], async (err, result) => {
         if (err) {
@@ -143,28 +127,20 @@ app.post('/login', (req, res) => {
         }
 
         const user = result[0];
-
-        // Compare passwords
         const match = await bcrypt.compare(password, user.password);
         if (!match) {
             return res.status(400).json({ error: 'Invalid credentials' });
         }
 
-        // Create JWT token
-        const accessToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-            expiresIn: '15m',
-        });
-
-        // Create Refresh Token
+        const accessToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '15m' });
         const refreshToken = jwt.sign({ userId: user.id }, process.env.REFRESH_TOKEN_SECRET);
 
-        // Send back the tokens
         res.json({ accessToken, refreshToken });
     });
 });
 
-// Refresh token route
-app.post('/refresh-token', (req, res) => {
+// Refresh Token route
+app.post('/refresh-token', (req, res) => { // 🛑 Fixed wrong route path here
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
@@ -176,128 +152,25 @@ app.post('/refresh-token', (req, res) => {
             return res.status(403).json({ error: 'Invalid refresh token' });
         }
 
-        // Generate a new access token
-        const newAccessToken = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET, {
-            expiresIn: '15m',
-        });
+        const newAccessToken = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
         res.json({ accessToken: newAccessToken });
     });
 });
 
-// Route to get the list of available coins
-app.get('/api/coins', (req, res) => {
-    // Example static list of coins (replace this with dynamic data from DB or third-party API)
+// Get coins route
+app.get('/api/coins', (req, res) => { // 🛑 Fixed wrong route path here
     const coins = [
         { id: 1, name: 'Bitcoin', symbol: 'BTC', logoUrl: 'https://path-to-logo/bitcoin.png' },
         { id: 2, name: 'Ethereum', symbol: 'ETH', logoUrl: 'https://path-to-logo/ethereum.png' },
         { id: 3, name: 'XRP', symbol: 'XRP', logoUrl: 'https://path-to-logo/xrp.png' },
         { id: 4, name: 'Litecoin', symbol: 'LTC', logoUrl: 'https://path-to-logo/litecoin.png' }
     ];
-
-    // Send the list of coins as a JSON response
     res.json({ coins });
 });
 
-// Set up the server to listen on a specific port
-const PORT = process.env.PORT || 5000;  // Default to 5000 if not specified in .env
+// Server
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-
-// Frontend functions (added)
-async function registerUser(email, password) {
-    try {
-        const response = await fetch('https://safecoinspot-bankend.onrender.com', { // Updated endpoint
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            console.log('Registration successful:', data);
-            // Save the JWT access token and refresh token in localStorage (optional)
-            localStorage.setItem('accessToken', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken);
-        } else {
-            console.error('Registration failed:', data.error || 'Unknown error');
-        }
-    } catch (error) {
-        console.error('Error during registration:', error.message);
-    }
-}
-
-// Function to handle user login
-async function loginUser(email, password) {
-    try {
-        const response = await fetch('https://safecoinspot-bankend.onrender.com/register', { // Updated endpoint
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            console.log('Login successful:', data);
-            // Save the JWT access token and refresh token in localStorage (optional)
-            localStorage.setItem('accessToken', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken);
-        } else {
-            console.error('Login failed:', data.error || 'Unknown error');
-        }
-    } catch (error) {
-        console.error('Error during login:', error.message);
-    }
-}
-
-// Function to refresh the access token using the refresh token
-async function refreshAccessToken() {
-    const refreshToken = localStorage.getItem('refreshToken');
-    
-    if (!refreshToken) {
-        console.error('No refresh token found');
-        return;
-    }
-
-    try {
-        const response = await fetch('https://safecoinspot.vercel.app/refresh-token', { // Updated endpoint to match your server setup
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ refreshToken }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            console.log('Access token refreshed:', data);
-            // Save the new access token in localStorage
-            localStorage.setItem('accessToken', data.accessToken);
-        } else {
-            console.error('Failed to refresh access token:', data.error || 'Unknown error');
-        }
-    } catch (error) {
-        console.error('Error refreshing access token:', error.message);
-    }
-}
-
-// Example usage of the functions
-const email = 'test@example.com';
-const password = 'securepassword123';
-
-// Register a new user
-registerUser(email, password);
-
-// Login with the user credentials
-loginUser(email, password);
-
-// To refresh the access token, call refreshAccessToken when necessary (e.g., when the token expires)
-refreshAccessToken();

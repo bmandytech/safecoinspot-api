@@ -1,14 +1,14 @@
-# Node.js
+# Node.js dependencies
 node_modules/
 
 # Build directories
 /build/
-/dist/
+dist/
 
 # Environment files
-.env
-.env.local
-.env.*.local
+.env  # Ignore environment variable files
+.env.local  # Local environment configuration
+.env.*.local  # Other local environment variable files
 
 # Log files
 *.log
@@ -16,15 +16,13 @@ node_modules/
 # Dependency directories
 jspm_packages/
 
-# MacOS system files
-.DS_Store
-
-# Windows system files
-Thumbs.db
+# OS-specific files
+.DS_Store  # MacOS-specific files
+Thumbs.db  # Windows-specific files
 
 # IDE directories
-.vscode/
-.idea/
+.vscode/  # VS Code workspace settings
+.idea/  # JetBrains IDE settings
 
-# TailwindCSS build folder
-/tailwindcss/
+# TailwindCSS build folder (if using Tailwind)
+tailwindcss/
