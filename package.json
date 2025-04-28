@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "build": "echo \"No build command specified for backend\""
   },
   "keywords": [],
   "author": "",
@@ -35,10 +36,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bmandytech/safecoinspot-bankend.git"
+    "url": "git+https://github.com/bmandytech/safecoinspot-api.git"
   },
   "bugs": {
-    "url": "https://github.com/bmandytech/safecoinspot-bankend/issues"
+    "url": "https://github.com/bmandytech/safecoinspot-api/issues"
   },
-  "homepage": "https://github.com/bmandytech/safecoinspot-bankend#readme"
+  "homepage": "https://github.com/bmandytech/safecoinspot-api#readme"
 }
